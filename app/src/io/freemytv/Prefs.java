@@ -22,7 +22,8 @@ final class Prefs {
     private Prefs() {}
 
     /** Remote keys we handle, with the app each opens until the user picks another. Codes read from the TCL's log. */
-    static final int KEY_NETFLIX = 4062, KEY_YOUTUBE = 190, KEY_PRIME = 4099, KEY_TCL_CHANNEL = 4020;
+    static final int KEY_NETFLIX = 4062, KEY_YOUTUBE = 190, KEY_PRIME = 4099, KEY_TCL_CHANNEL = 4020,
+            KEY_TCL_SETTINGS = 4077;   // the remote's gear button (TCL C655, read from its log)
     /** The Netflix button on Vestel TVs and Formovie projectors: STEM_1, which the TV hands to its Netflix key receiver (dumpsys window policy). */
     static final int KEY_STEM_NETFLIX = KeyEvent.KEYCODE_STEM_1;
     /** KTC's (NextStar) Tabii button: BUTTON_8, which the TV hands to its hot-key receiver (its log: "keycode = 195"). */
@@ -37,7 +38,7 @@ final class Prefs {
                     KEY_SONY_PLAY}
             : RemoteKeys.STEM_NETFLIX ? new int[] {KEY_STEM_NETFLIX}
             : RemoteKeys.KTC ? new int[] {KEY_KTC_TABII}
-            : new int[] {KEY_NETFLIX, KEY_YOUTUBE, KEY_PRIME, KEY_TCL_CHANNEL};
+            : new int[] {KEY_NETFLIX, KEY_YOUTUBE, KEY_PRIME, KEY_TCL_CHANNEL, KEY_TCL_SETTINGS};
 
     /** Bumped by every change: screens compare it to know when to redraw. */
     static volatile int version;
@@ -147,6 +148,7 @@ final class Prefs {
             case KEY_YOUTUBE: return "com.google.android.youtube.tv";
             case KEY_PRIME: return "com.amazon.amazonvideo.livingroom";
             case KEY_TCL_CHANNEL: return "";
+            case KEY_TCL_SETTINGS: return "com.android.tv.settings";
             default: return "";
         }
     }
