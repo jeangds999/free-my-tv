@@ -263,6 +263,20 @@ final class Recs {
         return cachedKey;
     }
 
+    private static volatile String cachedWatchmodeKey = "";
+    private static volatile int watchmodeKeyVersion = -1;
+
+    /** The Watchmode key given on the TV, else the one built in from config.properties. Asked while drawing, as key(). */
+    static String watchmodeKey() {
+        int version = Prefs.version;
+        if (version != watchmodeKeyVersion) {
+            String given = Prefs.watchmodeKey();
+            cachedWatchmodeKey = given.isEmpty() ? Config.WATCHMODE_KEY.trim() : given;
+            watchmodeKeyVersion = version;
+        }
+        return cachedWatchmodeKey;
+    }
+
     /**
      * A key as pasted (spaces, line breaks taken out), or "" when it can't be one: an API key (32 hex digits) or an API
      * Read Access Token (a JWT, "eyJ…").
@@ -284,6 +298,18 @@ final class Recs {
             return Ui.trf("Couldn't reach TMDB: {error}", "error", e.getMessage());
         } catch (RuntimeException e) {   // never out of KeyPage's thread (the watchdog counts it); the name only: no header value
             return Ui.trf("Couldn't reach TMDB: {error}", "error", e.getClass().getSimpleName());
+        }
+    }
+
+    /** Asks Watchmode whether a key works, before it's saved: null if it does, else why not. The key is in the URL: only our own message or the error's name. */
+    static String checkWatchmodeKey(String key) {
+        try {
+            watchmode("/status/", key);
+            return null;
+        } catch (IOException | RuntimeException e) {
+            String message = String.valueOf(e.getMessage());
+            if ("Watchmode returned HTTP 401".equals(message)) return Ui.tr("Watchmode refused this key.");
+            return Ui.trf("Couldn't reach Watchmode: {error}", "error", message.startsWith("Watchmode returned") ? message : e.getClass().getSimpleName());
         }
     }
 
@@ -1096,7 +1122,7 @@ final class Recs {
      * the home screen: with Continue Watching or the clock there, nothing opens them, so no lookups spend the quota.
      */
     private boolean linksOn() {
-        String key = Config.WATCHMODE_KEY.trim();
+        String key = watchmodeKey();
         return !key.isEmpty() && cache.getInt("wm:refused", 0) != key.hashCode() && Prefs.topContent().equals(Prefs.TOP_PICKS);
     }
 
@@ -1111,21 +1137,23 @@ final class Recs {
         if (System.currentTimeMillis() < linkRetryAt) return;
         try {
             String link = "";
-            JSONArray found = new JSONObject(watchmode("/search/?search_field=tmdb_" + p.kind + "_id&search_value=" + p.id))
+            JSONArray found = new JSONObject(watchmode("/search/?search_field=tmdb_" + p.kind + "_id&search_value=" + p.id, watchmodeKey()))
                     .optJSONArray("title_results");
             if (found != null && found.length() > 0) {
-                JSONArray sources = new JSONArray(watchmode("/title/" + found.getJSONObject(0).getInt("id") + "/sources/?regions=" + REGION));
+                JSONArray sources = new JSONArray(watchmode("/title/" + found.getJSONObject(0).getInt("id") + "/sources/?regions=" + REGION, watchmodeKey()));
                 String[] service = null;
                 for (String[] s : SERVICES) if (s[1].equals(p.app)) service = s;
                 for (String[] s : byName) if (s[1].equals(p.app)) service = s;
                 for (int i = 0; service != null && i < sources.length() && link.isEmpty(); i++) {
                     JSONObject s = sources.getJSONObject(i);
-                    String name = s.optString("name").toLowerCase(Locale.ROOT).replace(" ", "");
+                    String words = s.optString("name").toLowerCase(Locale.ROOT), name = words.replace(" ", "");
                     String want = service[0].replace(" ", "");
                     // Not a channel sold inside another app ("AppleTV+ Amazon Channel", "Paramount+ (Via Amazon Prime)"):
                     // that link opens Amazon or Apple's app, not the one the pick is for.
                     boolean resold = name.contains("channel") || name.contains("(via");
-                    boolean same = !resold && (want.equals("max") || WHOLE_NAME.contains(want) ? name.equals(want) : name.contains(want));
+                    // Max as a word, as for TMDB's providers: Watchmode calls it "HBO Max" again, and Cinemax isn't it.
+                    boolean same = !resold && (want.equals("max") ? words.matches(".*\\bmax\\b.*")
+                            : WHOLE_NAME.contains(want) ? name.equals(want) : name.contains(want));
                     if (same && s.optString("type").equals("sub") && s.optString("web_url").startsWith("https://")) link = s.optString("web_url");
                 }
             }
@@ -1133,16 +1161,16 @@ final class Recs {
             p.link = link.isEmpty() ? null : link;
         } catch (Exception e) {
             if ("Watchmode returned HTTP 401".equals(e.getMessage())) {
-                cache.edit().putInt("wm:refused", Config.WATCHMODE_KEY.trim().hashCode()).apply();
+                cache.edit().putInt("wm:refused", watchmodeKey().hashCode()).apply();
             }
             linkRetryAt = System.currentTimeMillis() + 10 * 60_000L;   // quota or network: not again right away
             AppLog.w("watchmode: " + e.getMessage());
         }
     }
 
-    private static String watchmode(String path) throws IOException {
+    private static String watchmode(String path, String key) throws IOException {
         HttpURLConnection c = (HttpURLConnection) new URL("https://api.watchmode.com/v1" + path + (path.contains("?") ? "&" : "?")
-                + "apiKey=" + URLEncoder.encode(Config.WATCHMODE_KEY.trim(), "UTF-8")).openConnection();
+                + "apiKey=" + URLEncoder.encode(key, "UTF-8")).openConnection();
         c.setConnectTimeout(8000);
         c.setReadTimeout(10000);
         try {

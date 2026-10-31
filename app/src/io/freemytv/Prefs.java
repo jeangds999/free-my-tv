@@ -386,6 +386,14 @@ final class Prefs {
         version++;
     }
 
+    /** The Watchmode key given on the TV, or "": then config.properties' one (Recs.watchmodeKey). Never logged. */
+    static String watchmodeKey() { return app == null ? "" : sp().getString("watchmodeKey", "").trim(); }
+
+    static void setWatchmodeKey(String key) {
+        sp().edit().putString("watchmodeKey", key).commit();
+        version++;
+    }
+
     // MARK: - Shelf
 
     /** Packages on the home shelf, in order; null until the user edits it (then the built-in list applies). */

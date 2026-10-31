@@ -1253,6 +1253,15 @@
     return null;
   }
 
+  function pickTarget(p) {
+    if (!p) return null;
+    var via = Prefs.openPicks() === 'nuvio' ? nuvio() : null;
+    var app = via || Data.appFor(p.app);
+    if (!app) return null;
+    // Nuvio's own link for the title, as on Android (nuvio://tmdb/movie/603); webOS apps get links as contentTarget.
+    return {app: app, params: via ? {contentTarget: 'nuvio://tmdb/' + (p.kind === 'tv' ? 'series' : 'movie') + '/' + p.id} : null};
+  }
+
   function launcher(id, name, params) {
     return function () {
       TV.launch(id, params || null, function (ok) {
@@ -1281,10 +1290,8 @@
         else openSettings();
         return;
       case Z.CARDS:
-        var p = cards[st.card], via = p && Prefs.openPicks() === 'nuvio' ? nuvio() : null;
-        var app = via || (p && Data.appFor(p.app));
-        // Nuvio's own link for the title, as on Android (nuvio://tmdb/movie/603); webOS apps get links as contentTarget.
-        if (app) launcher(app.id, app.title, via ? {contentTarget: 'nuvio://tmdb/' + (p.kind === 'tv' ? 'series' : 'movie') + '/' + p.id} : null)();
+        var target = pickTarget(cards[st.card]);
+        if (target) launcher(target.app.id, target.app.title, target.params)();
         return;
       case Z.SHELF:
         if (shelf[st.shelf]) launcher(shelf[st.shelf].id, shelf[st.shelf].title)();
@@ -1505,8 +1512,8 @@
         clock.children[2].textContent = p.title;
         saverPick = p;
         // With Watch from the screensaver on, OK opens this title's app (any other key only closes).
-        var app = Prefs.saverWatch() && Data.appFor(p.app);
-        hint.textContent = app ? trf('Press OK to watch on {app} · any other button to close', {app: app.title}) : '';
+        var target = Prefs.saverWatch() ? pickTarget(p) : null;
+        hint.textContent = target ? trf('Press OK to watch on {app} · any other button to close', {app: target.app.title}) : '';
         setTimeout(function () {
           setClass(back, 'on', true);
           setClass(front, 'on', false);
@@ -1577,9 +1584,9 @@
     idleAt = Date.now();
     if (ambientOn) { hideAmbient(); return true; }
     if (!saverOn) return false;
-    var app = ok && saverPick && Prefs.saverWatch() && Data.appFor(saverPick.app);
+    var target = ok && Prefs.saverWatch() ? pickTarget(saverPick) : null;
     hideSaver();
-    if (app) launcher(app.id, app.title)();
+    if (target) launcher(target.app.id, target.app.title, target.params)();
     return true;
   }
 

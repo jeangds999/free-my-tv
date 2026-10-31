@@ -54,7 +54,7 @@ before you do it, and let them do the taps on the TV.
    `config.properties`), they add it on the TV themselves: Home Settings > TMDB key (a QR code for their phone, or typed).
    Without a key everything works except the picks and their photos on the screensaver (photos they send themselves
    still show).
-   The same goes for the optional `watchmode_key` (free, watchmode.com; makes picks open the title's page): theirs, secret, only in `config.properties`.
+   The same goes for the optional `watchmode_key` (free, watchmode.com; makes picks open the title's page): theirs, secret, only in `config.properties`, or sent to the TV in Home Settings > Watchmode key.
    And for `plex_url` and `plex_token` (Google TV only; their Plex server's newest titles join the picks): the token opens
    their Plex account, so suggest a Plex Home managed user's (the README says how), and it goes only in `config.properties`.
    The optional Immich key (with `immich_server`, their own Immich server: My Photos come from it) is even more theirs:
@@ -180,7 +180,8 @@ Developer Mode; Samsung's home screen stays. Two ways:
    when the TV says `install completed` (`cmd_ret:0` comes after failures too). `--uninstall` removes
    it; some TVs' sdbd doesn't answer that, and then it's removed on the TV (Apps, Settings, Free My TV, Delete).
    A bare `install failed[118]` (Tizen 2.4 gives no reason) can be a copy left by an earlier failed install, signed
-   with another certificate and not shown on the TV: `--uninstall`, then install again (a 2016 KU6640, #349). Still
+   with another certificate and not shown on the TV: `--uninstall`, then install again (2016 KU6640 and KU6400, #349;
+   the KU6400 took the Tizen certificate after that, while a Samsung one, Public with its DUID, kept getting 118). Still
    118 after that, for a package id the TV has never seen and from Samsung's own `tizen install` with an install
    permit: the model refuses developer installs (a 2016 Full HD K5670, `16_HAWKM_FHD`, #349), so suggest a Google TV
    streamer on HDMI.
@@ -302,6 +303,8 @@ entries; its system pieces are in `PROTECTED`. USB debugging opens ADB on 5555 t
   port and token, one POST, 5 minutes, and only while that screen shows) behind a QR code (`Qr`, byte mode, level M, after
   Project Nayuki's MIT encoder, whose notice stays in the file), and checks a key with TMDB (`/configuration`) before
   saving it. Never log it. Nothing may escape KeyPage's threads: `:home`'s watchdog counts it as a home screen crash.
+  The Watchmode key has the same screen and page (`Prefs.watchmodeKey`, read through `Recs.watchmodeKey()`, checked with
+  `/status/`), on Google TV and Android TV only.
   On LG and Samsung it's typed in Home Settings (no QR: a web app can't serve a page): `Prefs.tmdbKey()` (localStorage)
   wins over `CONFIG.tmdbKey`, and `Data.keyChanged()` fetches the picks again.
 - Continue Watching gets `READ_TV_LISTINGS` with `pm grant` through the TV's own ADB only when picked in Home Settings;
